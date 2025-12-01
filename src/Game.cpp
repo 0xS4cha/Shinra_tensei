@@ -1,3 +1,5 @@
+#include "Game.hpp"
+
 Game::Game()
 {
     running = true;

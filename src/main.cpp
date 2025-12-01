@@ -1,18 +1,22 @@
 #include <SDL2/SDL.h>
 #include <vector>
 
-const int WIDTH = 800;
-const int HEIGHT = 600;
 const int CELL_SIZE = 20;
-const int COLS = WIDTH / CELL_SIZE;
-const int ROWS = HEIGHT / CELL_SIZE;
 
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
+    
+    SDL_DisplayMode dm;
+    SDL_GetCurrentDisplayMode(0, &dm);
 
-    SDL_Window* window = SDL_CreateWindow("Grille interactive",
+    const int WIDTH = dm.w;
+    const int HEIGHT = dm.h;
+    const int COLS = (WIDTH / CELL_SIZE);
+    const int ROWS = HEIGHT / CELL_SIZE;
+
+    SDL_Window* window = SDL_CreateWindow("Window",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        WIDTH, HEIGHT, 0);
+        WIDTH, HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
