@@ -1,41 +1,140 @@
 #include "Game.hpp"
+#include "Grid.hpp"
 
-Game::Game()
-{
-    running = true;
+Game::Game() : WIDTH(0), HEIGHT(0), COLS(0), ROWS(0), 
+               mainWindow(nullptr), mainRenderer(nullptr),
+               controlWindow(nullptr), controlRenderer(nullptr),
+               x_pos(0), y_pos(0), running(true) {
+    SDL_Init(SDL_INIT_VIDEO);
+    
+    SDL_DisplayMode dm;
+    SDL_GetCurrentDisplayMode(0, &dm);
+    WIDTH = dm.w;
+    HEIGHT = dm.h;
+    COLS = WIDTH / CELL_SIZE;
+    ROWS = HEIGHT / CELL_SIZE;
+    
+    mainWindow = SDL_CreateWindow("Game of Life",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        WIDTH, HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    mainRenderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED);
+    
+    controlWindow = SDL_CreateWindow("Controls",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        200, 100, SDL_WINDOW_SHOWN);
+    controlRenderer = SDL_CreateRenderer(controlWindow, -1, SDL_RENDERER_ACCELERATED);
+    
+    grid = std::vector<std::vector<int>>(ROWS, std::vector<int>(COLS, 0));
+    
+    skipButton = { 20, 20, 70, 40 };
+    preSkipButton = { 110, 20, 70, 40 };
 }
 
-/*Game::~Game()
-{
-    Nettoyage lorsque finit
-}*/
+Game::~Game() {
+    SDL_DestroyRenderer(mainRenderer);
+    SDL_DestroyWindow(mainWindow);
+    SDL_DestroyRenderer(controlRenderer);
+    SDL_DestroyWindow(controlWindow);
+    SDL_Quit();
+}
 
-void Game::run()
-{
-    while (running)
-    {
-        user_input_listener();
+void Game::run() {
+    while (running) {
+        handleEvents();
         update();
         render();
+        SDL_Delay(16);
     }
 }
 
-void Game::render()
-{
-
+void Game::handleEvents() {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            running = false;
+        } else if (event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+                case SDLK_LEFT:
+                    x_pos -= CELL_SIZE;
+                    break;
+                case SDLK_RIGHT:
+                    x_pos += CELL_SIZE;
+                    break;
+                case SDLK_UP:
+                    y_pos -= CELL_SIZE;
+                    break;
+                case SDLK_DOWN:
+                    y_pos += CELL_SIZE;
+                    break;
+            }
+        } else if (event.type == SDL_MOUSEBUTTONDOWN) {
+            if (event.window.windowID == SDL_GetWindowID(mainWindow)) {
+                int x = (event.button.x - x_pos) / CELL_SIZE;
+                int y = (event.button.y - y_pos) / CELL_SIZE;
+                handleMainWindowClick(x, y);
+            } else if (event.window.windowID == SDL_GetWindowID(controlWindow)) {
+                handleControlWindowClick(event.button.x, event.button.y);
+            }
+        }
+    }
 }
 
-void Game::update()
-{
-
+void Game::handleMainWindowClick(int x, int y) {
+    if (x >= 0 && x < COLS && y >= 0 && y < ROWS)
+        grid[y][x] = !grid[y][x];
 }
 
-void Game::user_input_listener()
-{
-
+void Game::handleControlWindowClick(int mx, int my) {
+    if (mx >= skipButton.x && mx <= skipButton.x + skipButton.w &&
+        my >= skipButton.y && my <= skipButton.y + skipButton.h) {
+        Grid::iterate(grid, ROWS, COLS);
+    } else if (mx >= preSkipButton.x && mx <= preSkipButton.x + preSkipButton.w &&
+               my >= preSkipButton.y && my <= preSkipButton.y + preSkipButton.h) {
+        // PreSkip : à implémenter si tu veux un historique
+    }
 }
 
-void Game::stop()
-{
-    running = false;
+void Game::update() {
+    // Logique de mise à jour si nécessaire
+}
+
+void Game::render() {
+    renderMainWindow();
+    renderControlWindow();
+}
+
+void Game::renderMainWindow() {
+    SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
+    SDL_RenderClear(mainRenderer);
+    
+    SDL_SetRenderDrawColor(mainRenderer, 180, 180, 180, 255);
+    for (int y = 0; y <= ROWS; ++y)
+        SDL_RenderDrawLine(mainRenderer, 0, y * CELL_SIZE + y_pos, WIDTH, y * CELL_SIZE + y_pos);
+    for (int x = 0; x <= COLS; ++x)
+        SDL_RenderDrawLine(mainRenderer, x * CELL_SIZE + x_pos, 0, x * CELL_SIZE + x_pos, HEIGHT);
+    
+    SDL_SetRenderDrawColor(mainRenderer, 0, 255, 0, 255);
+    for (int y = 0; y < ROWS; ++y) {
+        for (int x = 0; x < COLS; ++x) {
+            if (grid[y][x]) {
+                SDL_Rect cell = { x * CELL_SIZE + x_pos, y * CELL_SIZE + y_pos, CELL_SIZE, CELL_SIZE };
+                SDL_RenderFillRect(mainRenderer, &cell);
+            }
+        }
+    }
+    
+    SDL_RenderPresent(mainRenderer);
+}
+
+void Game::renderControlWindow() {
+    SDL_SetRenderDrawColor(controlRenderer, 50, 50, 50, 255);
+    SDL_RenderClear(controlRenderer);
+    
+    SDL_SetRenderDrawColor(controlRenderer, 0, 0, 255, 255);
+    SDL_RenderFillRect(controlRenderer, &skipButton);
+    
+    SDL_SetRenderDrawColor(controlRenderer, 255, 0, 0, 255);
+    SDL_RenderFillRect(controlRenderer, &preSkipButton);
+    
+    SDL_RenderPresent(controlRenderer);
 }
