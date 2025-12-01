@@ -1,0 +1,13 @@
+
+jeu de la vie:
+
+
+2 REGLES :
+
+SI si une cellule a strictement moins de deux ou strictement plus de trois voisines vivantes, elle est morte à l’étape suivante.
+ 
+Si une cellule a exactement trois voisines vivantes, elle est vivante à l’étape suivante.
+
+MAP ETENDU A LINFINI NAVIGABLE AVEC LES FLECHES CLAVIER
+
+
