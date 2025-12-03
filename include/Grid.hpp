@@ -18,11 +18,18 @@ struct Cell {
     }
 };
 
+enum class RuleSet {
+    CONWAY,     // B3/S23
+    HIGHLIFE,   // B36/S23
+    COUNT       // Helper to count number of rulesets
+};
+
 class Grid {
 private:
     std::set<Cell> aliveCells;
     std::set<Cell> godCells; // Cellules en mode Dieu
-
+    RuleSet currentRuleSet;
+    
 public:
     // Définir l'état d'une cellule
     void setCell(int x, int y, bool alive);
@@ -47,6 +54,8 @@ public:
     bool isGod(int x, int y) const;
     const std::set<Cell>& getGodCells() const;
     void setAliveCells(const std::set<Cell>& cells);
+    void setRuleSet(RuleSet rules);
+    RuleSet getRuleSet() const;
 
     // Save/Load
     bool saveToFile(const std::string& filename);

@@ -33,6 +33,8 @@ private:
     // État de la simulation
     bool running;
     bool paused;
+    Uint32 simulation_speed_ms; // Vitesse de simulation en ms
+    int generation_count;
     Uint32 last_update_time;
 
     // Historique
@@ -49,6 +51,9 @@ private:
     SDL_Rect godModeButton;
     SDL_Rect saveButton;
     SDL_Rect backToMenuButton;
+    SDL_Rect speedUpButton;
+    SDL_Rect slowDownButton;
+    SDL_Rect changeRulesButton;
 
     // Main Menu UI Buttons
     SDL_Rect newGameButton;
@@ -61,6 +66,7 @@ private:
     bool isPanning;
     int panStartX, panStartY;
     bool isSelecting;
+    bool isDrawing; // Pour le nouveau mode dessin
     SDL_Rect selectionRect;
 
     // New button for randomizing selection

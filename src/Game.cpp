@@ -6,11 +6,11 @@ Game::Game() :
     WIDTH(1280), HEIGHT(720),
     window(nullptr), renderer(nullptr), font(nullptr),
     gameState(MAIN_MENU),
-    camera_x(0.0f), camera_y(0.0f), zoom(1.0f),
-    running(true), paused(true), last_update_time(0),
+    camera_x(0.0f), camera_y(0.0f), zoom(1.0f), 
+    running(true), paused(true), simulation_speed_ms(200), generation_count(0), last_update_time(0),
     history_index(-1), godModeActive(false),
     isPanning(false), panStartX(0), panStartY(0),
-    isSelecting(false), selectionRect({0,0,0,0}) {
+    isSelecting(false), isDrawing(false), selectionRect({0,0,0,0}) {
 
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
@@ -42,6 +42,9 @@ Game::Game() :
     saveButton = { WIDTH - UI_WIDTH + 20, 340, 210, 40 };
     randomizeSelectionButton = { WIDTH - UI_WIDTH + 20, 390, 210, 40 };
     backToMenuButton = { WIDTH - UI_WIDTH + 20, HEIGHT - 60, 210, 40 };
+    slowDownButton = { WIDTH - UI_WIDTH + 20, 440, 100, 40 };
+    speedUpButton = { WIDTH - UI_WIDTH + 130, 440, 100, 40 };
+    changeRulesButton = { WIDTH - UI_WIDTH + 20, 540, 210, 40 };
 }
 
 Game::~Game() {
@@ -82,6 +85,9 @@ void Game::handleEvents() {
             saveButton.x = WIDTH - UI_WIDTH + 20;
             randomizeSelectionButton.x = WIDTH - UI_WIDTH + 20;
             backToMenuButton.x = WIDTH - UI_WIDTH + 20;
+            slowDownButton.x = WIDTH - UI_WIDTH + 20;
+            speedUpButton.x = WIDTH - UI_WIDTH + 130;
+            changeRulesButton.x = WIDTH - UI_WIDTH + 20;
             backToMenuButton.y = HEIGHT - 60;
         }
 
@@ -101,12 +107,19 @@ void Game::handleGameEvents(SDL_Event& event) {
                 panStartX = event.button.x - camera_x;
                 panStartY = event.button.y - camera_y;
             } else if (event.button.button == SDL_BUTTON_LEFT) {
-                if (event.button.x < WIDTH - UI_WIDTH) { // Click is on the grid
-                    isSelecting = true;
-                    selectionRect.x = event.button.x;
-                    selectionRect.y = event.button.y;
-                    selectionRect.w = 0;
-                    selectionRect.h = 0;
+                const Uint8* keyboardState = SDL_GetKeyboardState(NULL);
+                if (keyboardState[SDL_SCANCODE_LSHIFT] || keyboardState[SDL_SCANCODE_RSHIFT]) {
+                    isDrawing = true;
+                    // Activer la cellule sous le curseur immédiatement
+                    handleGameMouseClick(event.button);
+                } else {
+                    if (event.button.x < WIDTH - UI_WIDTH) { // Click is on the grid
+                        isSelecting = true;
+                        selectionRect.x = event.button.x;
+                        selectionRect.y = event.button.y;
+                        selectionRect.w = 0;
+                        selectionRect.h = 0;
+                    }
                 }
             }
             break;
@@ -116,6 +129,7 @@ void Game::handleGameEvents(SDL_Event& event) {
                 isPanning = false;
             } else if (event.button.button == SDL_BUTTON_LEFT) {
                 handleGameMouseClick(event.button); // Handle all left-click actions on mouse up
+                isDrawing = false;
                 isSelecting = false; // End selection process
             }
             break;
@@ -127,9 +141,12 @@ void Game::handleGameEvents(SDL_Event& event) {
             } else if (isSelecting) {
                 selectionRect.w = event.motion.x - selectionRect.x;
                 selectionRect.h = event.motion.y - selectionRect.y;
+            } else if (isDrawing) {
+                int grid_x = floor((event.motion.x - camera_x) / (CELL_SIZE * zoom));
+                int grid_y = floor((event.motion.y - camera_y) / (CELL_SIZE * zoom));
+                grid.setCell(grid_x, grid_y, true);
             }
             break;
-
         case SDL_MOUSEWHEEL:
             handleMouseWheel(event.wheel);
             break;
@@ -159,6 +176,7 @@ void Game::handleMenuMouseClick(SDL_MouseButtonEvent& b) {
             grid.clear();
             history.clear();
             history_index = -1;
+            generation_count = 0;
             addToHistory();
         } else if (b.x >= loadGameButton.x && b.x <= loadGameButton.x + loadGameButton.w &&
                    b.y >= loadGameButton.y && b.y <= loadGameButton.y + loadGameButton.h) {
@@ -166,6 +184,7 @@ void Game::handleMenuMouseClick(SDL_MouseButtonEvent& b) {
                 gameState = IN_GAME;
                 history.clear();
                 history_index = -1;
+                generation_count = 0; // Ou charger depuis le fichier de sauvegarde si vous l'ajoutez
                 addToHistory();
             }
         } else if (b.x >= quitButton.x && b.x <= quitButton.x + quitButton.w &&
@@ -180,7 +199,7 @@ void Game::handleGameMouseClick(SDL_MouseButtonEvent& b) {
     if (b.button != SDL_BUTTON_LEFT) return;
 
     // Check if it was a drag (selection) or a click
-    bool wasDrag = (selectionRect.w != 0 || selectionRect.h != 0);
+    bool wasSelection = (isSelecting && (selectionRect.w != 0 || selectionRect.h != 0));
 
     if (b.x >= WIDTH - UI_WIDTH) {
         // UI click, ignore selection
@@ -190,26 +209,37 @@ void Game::handleGameMouseClick(SDL_MouseButtonEvent& b) {
         } else if (b.y >= nextStepButton.y && b.y <= nextStepButton.y + nextStepButton.h) {
             if (paused) {
                 grid.update(paused);
+                generation_count++;
                 addToHistory();
             }
         } else if (b.y >= undoButton.y && b.y <= undoButton.y + undoButton.h) {
+            if (b.x >= undoButton.x && b.x <= undoButton.x + undoButton.w) {
             undo();
-        } else if (b.y >= redoButton.y && b.y <= redoButton.y + redoButton.h) {
+            // Note: generation_count n'est pas restauré, il reflète les étapes de simulation.
+            } else if (b.x >= redoButton.x && b.x <= redoButton.x + redoButton.w) {
             redo();
-        } else if (b.y >= clearButton.y && b.y <= clearButton.y + clearButton.h) {
+            }
+        } else if (b.x >= clearButton.x && b.x <= clearButton.x + clearButton.w &&
+                   b.y >= clearButton.y && b.y <= clearButton.y + clearButton.h) {
             grid.clear();
+            generation_count = 0;
             addToHistory();
-        } else if (b.y >= randomizeButton.y && b.y <= randomizeButton.y + randomizeButton.h) {
+        } else if (b.x >= randomizeButton.x && b.x <= randomizeButton.x + randomizeButton.w &&
+                   b.y >= randomizeButton.y && b.y <= randomizeButton.y + randomizeButton.h) {
             int grid_w = (WIDTH - UI_WIDTH) / (CELL_SIZE * zoom);
             int grid_h = HEIGHT / (CELL_SIZE * zoom);
+            generation_count = 0;
             grid.randomize(grid_w, grid_h, -camera_x / (CELL_SIZE * zoom), -camera_y / (CELL_SIZE * zoom));
             addToHistory();
-        } else if (b.y >= godModeButton.y && b.y <= godModeButton.y + godModeButton.h) {
+        } else if (b.x >= godModeButton.x && b.x <= godModeButton.x + godModeButton.w &&
+                   b.y >= godModeButton.y && b.y <= godModeButton.y + godModeButton.h) {
             godModeActive = !godModeActive;
-        } else if (b.y >= saveButton.y && b.y <= saveButton.y + saveButton.h) {
+        } else if (b.x >= saveButton.x && b.x <= saveButton.x + saveButton.w &&
+                   b.y >= saveButton.y && b.y <= saveButton.y + saveButton.h) {
             grid.saveToFile("save.dat");
-        } else if (b.y >= randomizeSelectionButton.y && b.y <= randomizeSelectionButton.y + randomizeSelectionButton.h) {
-            if (wasDrag) {
+        } else if (b.x >= randomizeSelectionButton.x && b.x <= randomizeSelectionButton.x + randomizeSelectionButton.w &&
+                   b.y >= randomizeSelectionButton.y && b.y <= randomizeSelectionButton.y + randomizeSelectionButton.h) {
+            if (wasSelection) {
                 // Normalize the selection rectangle
                 SDL_Rect normalizedRect = selectionRect;
                 if (normalizedRect.w < 0) {
@@ -222,21 +252,33 @@ void Game::handleGameMouseClick(SDL_MouseButtonEvent& b) {
                 }
 
                 // Convert screen coordinates to grid coordinates
-                int start_x = static_cast<int>((normalizedRect.x - camera_x) / (CELL_SIZE * zoom));
-                int start_y = static_cast<int>((normalizedRect.y - camera_y) / (CELL_SIZE * zoom));
-                int end_x = static_cast<int>((normalizedRect.x + normalizedRect.w - camera_x) / (CELL_SIZE * zoom));
-                int end_y = static_cast<int>((normalizedRect.y + normalizedRect.h - camera_y) / (CELL_SIZE * zoom));
+                int start_x = floor((normalizedRect.x - camera_x) / (CELL_SIZE * zoom));
+                int start_y = floor((normalizedRect.y - camera_y) / (CELL_SIZE * zoom));
+                int end_x = floor((normalizedRect.x + normalizedRect.w - camera_x) / (CELL_SIZE * zoom));
+                int end_y = floor((normalizedRect.y + normalizedRect.h - camera_y) / (CELL_SIZE * zoom));
                 
                 grid.randomize_selection(start_x, start_y, end_x - start_x + 1, end_y - start_y + 1);
                 addToHistory();
             }
-        } else if (b.y >= backToMenuButton.y && b.y <= backToMenuButton.y + backToMenuButton.h) {
+        } else if (b.x >= backToMenuButton.x && b.x <= backToMenuButton.x + backToMenuButton.w &&
+                   b.y >= backToMenuButton.y && b.y <= backToMenuButton.y + backToMenuButton.h) {
             gameState = MAIN_MENU;
+        } else if (b.y >= slowDownButton.y && b.y <= slowDownButton.y + slowDownButton.h) {
+            if (b.x >= slowDownButton.x && b.x <= slowDownButton.x + slowDownButton.w) {
+                simulation_speed_ms += 50;
+            } else if (b.x >= speedUpButton.x && b.x <= speedUpButton.x + speedUpButton.w) {
+                if (simulation_speed_ms >= 50) simulation_speed_ms -= 50;
+            }
+        } else if (b.x >= changeRulesButton.x && b.x <= changeRulesButton.x + changeRulesButton.w &&
+                   b.y >= changeRulesButton.y && b.y <= changeRulesButton.y + changeRulesButton.h) {
+            RuleSet current_rules = grid.getRuleSet(); // Assurez-vous que Grid a getRuleSet()
+            int next_rules_int = (static_cast<int>(current_rules) + 1) % static_cast<int>(RuleSet::COUNT);
+            grid.setRuleSet(static_cast<RuleSet>(next_rules_int));
         }
-    } else if (!wasDrag) {
-        // Grid click (not a drag)
-        int grid_x = static_cast<int>((b.x - camera_x) / (CELL_SIZE * zoom));
-        int grid_y = static_cast<int>((b.y - camera_y) / (CELL_SIZE * zoom));
+    } else if (!wasSelection) {
+        // Grid click (not a selection drag or drawing)
+        int grid_x = floor((b.x - camera_x) / (CELL_SIZE * zoom));
+        int grid_y = floor((b.y - camera_y) / (CELL_SIZE * zoom));
         if (godModeActive) {
             grid.setGodCell(grid_x, grid_y, !grid.isGod(grid_x, grid_y));
         } else {
@@ -244,8 +286,10 @@ void Game::handleGameMouseClick(SDL_MouseButtonEvent& b) {
             addToHistory();
         }
     }
-    // Reset selection rectangle after every left mouse up
-    selectionRect = {0, 0, 0, 0};
+    // Reset selection rectangle if it was a selection, and not a drawing action
+    if (isSelecting) {
+        selectionRect = {0, 0, 0, 0};
+    }
 }
 
 void Game::handleMouseWheel(SDL_MouseWheelEvent& wheel) {
@@ -263,8 +307,9 @@ void Game::handleMouseWheel(SDL_MouseWheelEvent& wheel) {
 
 void Game::update() {
     Uint32 current_time = SDL_GetTicks();
-    if (!paused && current_time > last_update_time + 200) { // Vitesse de simulation
+    if (!paused && current_time > last_update_time + simulation_speed_ms) {
         grid.update(paused);
+        generation_count++;
         addToHistory();
         last_update_time = current_time;
     }
@@ -358,6 +403,23 @@ void Game::renderUI() {
     SDL_Color textColor = { 255, 255, 255, 255 };
     SDL_Color godColor = { 0, 0, 0, 255 };
 
+    // Stats
+    std::string genText = "Generation: " + std::to_string(generation_count);
+    renderText(genText.c_str(),  10, 10, 0, 0, textColor);
+    
+    std::string popText = "Population: " + std::to_string(grid.getAliveCells().size());
+    renderText(popText.c_str(), 10, 40, 0, 0, textColor);
+
+    std::string speedText = "Speed: " + std::to_string(simulation_speed_ms) + "ms";
+    renderText(speedText.c_str(), WIDTH - UI_WIDTH + 20, 490, 0, 0, textColor);
+
+    RuleSet current_rules = grid.getRuleSet();
+    std::string rulesText = "Rules: ";
+    if (current_rules == RuleSet::CONWAY) rulesText += "Conway";
+    else if (current_rules == RuleSet::HIGHLIFE) rulesText += "HighLife";
+    renderText(rulesText.c_str(), WIDTH - UI_WIDTH + 20, 590, 0, 0, textColor);
+
+
     // Buttons
     // Play/Pause
     if (paused) {
@@ -402,6 +464,17 @@ void Game::renderUI() {
     renderText("Randomize Selection", randomizeSelectionButton.x, randomizeSelectionButton.y, randomizeSelectionButton.w, randomizeSelectionButton.h, textColor);
     SDL_RenderFillRect(renderer, &backToMenuButton);
     renderText("Back to Menu", backToMenuButton.x, backToMenuButton.y, backToMenuButton.w, backToMenuButton.h, textColor);
+
+    // Speed buttons
+    SDL_SetRenderDrawColor(renderer, 80, 80, 180, 255);
+    SDL_RenderFillRect(renderer, &slowDownButton);
+    renderText("-", slowDownButton.x, slowDownButton.y, slowDownButton.w, slowDownButton.h, textColor);
+    SDL_RenderFillRect(renderer, &speedUpButton);
+    renderText("+", speedUpButton.x, speedUpButton.y, speedUpButton.w, speedUpButton.h, textColor);
+
+    SDL_SetRenderDrawColor(renderer, 80, 80, 180, 255);
+    SDL_RenderFillRect(renderer, &changeRulesButton);
+    renderText("Change Rules", changeRulesButton.x, changeRulesButton.y, changeRulesButton.w, changeRulesButton.h, textColor);
 }
 
 void Game::renderMainMenu() {
@@ -437,7 +510,12 @@ void Game::renderText(const char* text, int x, int y, int w, int h, SDL_Color co
         return;
     }
     // Center the text inside the button rect {x, y, w, h}
-    SDL_Rect dstRect = { x + (w - surface->w) / 2, y + (h - surface->h) / 2, surface->w, surface->h };
+    SDL_Rect dstRect;
+    if (w == 0 && h == 0) { // If width and height are 0, just use the given x,y
+        dstRect = { x, y, surface->w, surface->h };
+    } else { // Otherwise, center it
+        dstRect = { x + (w - surface->w) / 2, y + (h - surface->h) / 2, surface->w, surface->h };
+    }
     SDL_RenderCopy(renderer, texture, NULL, &dstRect);
     SDL_FreeSurface(surface);
     SDL_DestroyTexture(texture);
@@ -448,6 +526,9 @@ void Game::addToHistory() {
         history.erase(history.begin() + history_index + 1, history.end());
     }
     history.push_back(grid.getAliveCells());
+    if (history.size() > 50) { // Limite l'historique pour ne pas saturer la mémoire
+        history.erase(history.begin());
+    }
     history_index++;
 }
 

@@ -2,9 +2,9 @@
 #include "Grid.hpp"
 
 #include <set>
-#include <cstdlib> // Pour rand()
-#include <ctime>   // Pour time()
-#include <fstream> // Pour std::ofstream et std::ifstream
+#include <cstdlib>
+#include <ctime>  
+#include <fstream> 
 
 void Grid::setCell(int x, int y, bool alive) {
     if (alive) {
@@ -38,7 +38,7 @@ void Grid::randomize(int width, int height, int x_offset, int y_offset) {
     srand(time(NULL));
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            if (rand() % 5 == 0) { // 1 chance sur 5 d'être vivante
+            if (rand() % 5 == 0) { 
                 aliveCells.insert({x + x_offset, y + y_offset});
             }
         }
@@ -49,7 +49,7 @@ void Grid::randomize_selection(int start_x, int start_y, int width, int height) 
     srand(time(NULL));
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            if (rand() % 2 == 0) { // 50% chance
+            if (rand() % 2 == 0) { 
                 setCell(start_x + x, start_y + y, true);
             }
         }
@@ -76,8 +76,15 @@ void Grid::setAliveCells(const std::set<Cell>& cells) {
     aliveCells = cells;
 }
 
+void Grid::setRuleSet(RuleSet rules) {
+    currentRuleSet = rules;
+}
+
+RuleSet Grid::getRuleSet() const {
+    return currentRuleSet;
+}
+
 void Grid::update(bool& simPaused) {
-    if (simPaused) return;
 
     std::set<Cell> cellsToCheck;
     for (const auto& cell : aliveCells) {
@@ -99,12 +106,27 @@ void Grid::update(bool& simPaused) {
 
         int neighbors = countNeighbors(cell.x, cell.y);
         bool currentlyAlive = isAlive(cell.x, cell.y);
+        bool becomesAlive = false;
 
-        if (currentlyAlive && (neighbors == 2 || neighbors == 3)) {
-            newAliveCells.insert(cell);
-        } else if (!currentlyAlive && neighbors == 3) {
-            newAliveCells.insert(cell);
+        switch (currentRuleSet) {
+            case RuleSet::CONWAY: 
+                if (!currentlyAlive && neighbors == 3) {
+                    becomesAlive = true; 
+                } else if (currentlyAlive && (neighbors == 2 || neighbors == 3)) {
+                    becomesAlive = true; 
+                }
+                break;
+            case RuleSet::HIGHLIFE: 
+                if (!currentlyAlive && (neighbors == 3 || neighbors == 6)) {
+                    becomesAlive = true; 
+                } else if (currentlyAlive && (neighbors == 2 || neighbors == 3)) {
+                    becomesAlive = true; 
+                }
+                break;
+            case RuleSet::COUNT:
+                break;
         }
+        if (becomesAlive) newAliveCells.insert(cell);
     }
     aliveCells = newAliveCells;
 }
