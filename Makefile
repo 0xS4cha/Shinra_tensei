@@ -1,30 +1,42 @@
 CC = g++
-CFLAGS = -std=c++17 -Wall -Iinclude -I/home/aluslu/shinra_tensei/local_libs/include
-LIBS = `sdl2-config --cflags` -L/home/aluslu/shinra_tensei/local_libs/lib -lSDL2_ttf `sdl2-config --libs` -Wl,-rpath,'/home/aluslu/shinra_tensei/local_libs/lib'
+NAME = shinra_tensei
 
 SRC_DIR = src
 OBJ_DIR = obj
 INC_DIR = include
 
-NAME = shinra_tensei
+# --- Dépendances locales ---
+LOCAL_LIB_DIR = libs
+SDL2_TTF_PATH = $(LOCAL_LIB_DIR)/SDL2
 
-SOURCES = Game.cpp Grid.cpp main.cpp
-OBJECTS = $(SOURCES:%.cpp=$(OBJ_DIR)/%.o)
+# --- Flags de compilation et de liaison ---
+
+# Détecte automatiquement tous les fichiers .cpp dans src/
+SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
+OBJECTS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SOURCES))
+
+# Flags pour le compilateur (chemins des headers)
+# -I$(INC_DIR) pour vos headers locaux (ex: Game.h)
+# -I$(SDL2_TTF_PATH)/include pour SDL_ttf.h
+CPPFLAGS = -I$(INC_DIR) -I$(LOCAL_LIB_DIR) $(shell sdl2-config --cflags)
+CXXFLAGS = -std=c++17 -Wall -Wextra -g
+
+# Flags pour l'éditeur de liens (chemins des bibliothèques)
+LDFLAGS = -L$(SDL2_TTF_PATH)/.libs
+
+# Bibliothèques à lier
+LDLIBS = $(shell sdl2-config --libs) -lSDL2_ttf
 
 # Règle principale
 all: $(NAME)
 
 # Linking des .o vers l'exécutable
 $(NAME): $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) -o $(NAME) $(LIBS)
+	$(CC) $(CXXFLAGS) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-# Compilation des .cpp en .o avec dépendances .hpp
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(INC_DIR)/%.hpp | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@ $(LIBS)
-
-# Règle spéciale pour main.cpp (pas de main.hpp généralement)
-$(OBJ_DIR)/main.o: $(SRC_DIR)/main.cpp | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@ $(LIBS)
+# Compilation des .cpp en .o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	$(CC) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Créer le dossier obj s'il n'existe pas
 $(OBJ_DIR):

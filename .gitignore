@@ -1,0 +1,11 @@
+# Fichiers binaires et exécutable
+shinra_tensei
+
+# Répertoire des fichiers objets
+obj/
+
+# Fichiers de sauvegarde
+save.dat
+
+# Bibliothèques statiques (.a) compilées localement
+libs/SDL2/.libs/*.a
