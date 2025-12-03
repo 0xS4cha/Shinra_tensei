@@ -105,21 +105,24 @@ void Game::update() {
 }
 
 void Game::renderMainWindow() {
-    SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
+    // --- Background ---
+    SDL_SetRenderDrawColor(mainRenderer, 15, 15, 20, 255);  // fond gris-bleu sombre
     SDL_RenderClear(mainRenderer);
     
-    SDL_SetRenderDrawColor(mainRenderer, 180, 180, 180, 255);
+    // --- Grille ---
+    SDL_SetRenderDrawColor(mainRenderer, 80, 90, 110, 255); // gris bleuté
     for (int y = 0; y <= ROWS; ++y)
         SDL_RenderDrawLine(mainRenderer, 0, y * CELL_SIZE + y_pos, WIDTH, y * CELL_SIZE + y_pos);
+
     for (int x = 0; x <= COLS; ++x)
         SDL_RenderDrawLine(mainRenderer, x * CELL_SIZE + x_pos, 0, x * CELL_SIZE + x_pos, HEIGHT);
     
-    SDL_SetRenderDrawColor(mainRenderer, 0, 255, 0, 255);
+    // --- Cellules vivantes ---
+    SDL_SetRenderDrawColor(mainRenderer, 83, 219, 142, 255); // bleu clair vif
 
-    for (Cell elemcell: grid.getAliveCells()) {
-
-            SDL_Rect cell = { elemcell.x * CELL_SIZE + x_pos, elemcell.y * CELL_SIZE + y_pos, CELL_SIZE, CELL_SIZE };
-            SDL_RenderFillRect(mainRenderer, &cell);
+    for (Cell elemcell : grid.getAliveCells()) {
+        SDL_Rect cell = { elemcell.x * CELL_SIZE + x_pos, elemcell.y * CELL_SIZE + y_pos, CELL_SIZE, CELL_SIZE };
+        SDL_RenderFillRect(mainRenderer, &cell);
     }
     
     SDL_RenderPresent(mainRenderer);
