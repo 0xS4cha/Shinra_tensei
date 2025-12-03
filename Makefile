@@ -1,6 +1,6 @@
 CC = g++
-CFLAGS = -std=c++17 -Wall -Iinclude
-LIBS = `sdl2-config --cflags --libs`
+CFLAGS = -std=c++17 -Wall -Iinclude -I/home/aluslu/shinra_tensei/local_libs/include
+LIBS = `sdl2-config --cflags` -L/home/aluslu/shinra_tensei/local_libs/lib -lSDL2_ttf `sdl2-config --libs` -Wl,-rpath,'/home/aluslu/shinra_tensei/local_libs/lib'
 
 SRC_DIR = src
 OBJ_DIR = obj
