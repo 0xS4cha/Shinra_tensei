@@ -1,6 +1,8 @@
 #include "Game.hpp"
 #include "Grid.hpp"
 
+
+
 Game::Game() : WIDTH(0), HEIGHT(0), COLS(0), ROWS(0), 
                mainWindow(nullptr), mainRenderer(nullptr),
                controlWindow(nullptr), controlRenderer(nullptr),
@@ -23,9 +25,9 @@ Game::Game() : WIDTH(0), HEIGHT(0), COLS(0), ROWS(0),
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         200, 100, SDL_WINDOW_SHOWN);
     controlRenderer = SDL_CreateRenderer(controlWindow, -1, SDL_RENDERER_ACCELERATED);
-    
-    grid = std::vector<std::vector<int>>(ROWS, std::vector<int>(COLS, 0));
-    
+
+    // NOTE: don't create a local Grid named `grid` here — that would shadow
+    // the member `grid` declared in Game.hpp. The member will be default-constructed.
     skipButton = { 20, 20, 70, 40 };
     preSkipButton = { 110, 20, 70, 40 };
 }
@@ -80,27 +82,26 @@ void Game::handleEvents() {
 }
 
 void Game::handleMainWindowClick(int x, int y) {
-    if (x >= 0 && x < COLS && y >= 0 && y < ROWS)
-        grid[y][x] = !grid[y][x];
+    grid.setCell(x, y, !(grid.isAlive(x, y)));
 }
 
 void Game::handleControlWindowClick(int mx, int my) {
     if (mx >= skipButton.x && mx <= skipButton.x + skipButton.w &&
         my >= skipButton.y && my <= skipButton.y + skipButton.h) {
-        Grid::iterate(grid, ROWS, COLS);
+        grid.update();
     } else if (mx >= preSkipButton.x && mx <= preSkipButton.x + preSkipButton.w &&
                my >= preSkipButton.y && my <= preSkipButton.y + preSkipButton.h) {
         // PreSkip : à implémenter si tu veux un historique
     }
 }
 
-void Game::update() {
-    // Logique de mise à jour si nécessaire
-}
-
 void Game::render() {
     renderMainWindow();
     renderControlWindow();
+}
+
+void Game::update() {
+    
 }
 
 void Game::renderMainWindow() {
@@ -114,13 +115,11 @@ void Game::renderMainWindow() {
         SDL_RenderDrawLine(mainRenderer, x * CELL_SIZE + x_pos, 0, x * CELL_SIZE + x_pos, HEIGHT);
     
     SDL_SetRenderDrawColor(mainRenderer, 0, 255, 0, 255);
-    for (int y = 0; y < ROWS; ++y) {
-        for (int x = 0; x < COLS; ++x) {
-            if (grid[y][x]) {
-                SDL_Rect cell = { x * CELL_SIZE + x_pos, y * CELL_SIZE + y_pos, CELL_SIZE, CELL_SIZE };
-                SDL_RenderFillRect(mainRenderer, &cell);
-            }
-        }
+
+    for (Cell elemcell: grid.getAliveCells()) {
+
+            SDL_Rect cell = { elemcell.x * CELL_SIZE + x_pos, elemcell.y * CELL_SIZE + y_pos, CELL_SIZE, CELL_SIZE };
+            SDL_RenderFillRect(mainRenderer, &cell);
     }
     
     SDL_RenderPresent(mainRenderer);

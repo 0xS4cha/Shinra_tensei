@@ -1,48 +1,59 @@
+#include <map>
 #include "Grid.hpp"
 
-int Grid::getCell(int x, int y) {
-    // À implémenter si nécessaire
-    return 0;
-}
+#include <set>
 
 void Grid::setCell(int x, int y, bool alive) {
-    // À implémenter si nécessaire
+    if (alive) {
+        aliveCells.insert({x, y});
+    } else {
+        aliveCells.erase({x, y});
+    }
 }
 
-void Grid::update() {
-    // À implémenter si nécessaire
+bool Grid::isAlive(int x, int y) const {
+    return aliveCells.find({x, y}) != aliveCells.end();
 }
 
-int Grid::countNeighbors(const std::vector<std::vector<int>>& grid, int x, int y, int rows, int cols) {
+int Grid::countNeighbors(int x, int y) const {
     int count = 0;
-    for (int dy = -1; dy <= 1; ++dy) {
-        for (int dx = -1; dx <= 1; ++dx) {
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
             if (dx == 0 && dy == 0) continue;
-            int nx = (x + dx + cols) % cols;
-            int ny = (y + dy + rows) % rows;
-            count += grid[ny][nx];
+            if (isAlive(x + dx, y + dy)) count++;
         }
     }
     return count;
 }
 
-void Grid::iterate(std::vector<std::vector<int>>& grid, int rows, int cols) {
-    std::vector<std::vector<int>> newGrid = grid;
-    
-    for (int y = 0; y < rows; ++y) {
-        for (int x = 0; x < cols; ++x) {
-            int neighbors = countNeighbors(grid, x, y, rows, cols);
-            
-            if (grid[y][x] == 1) {
-                // Cellule vivante
-                newGrid[y][x] = (neighbors == 2 || neighbors == 3) ? 1 : 0;
-            } else {
-                // Cellule morte
-                newGrid[y][x] = (neighbors == 3) ? 1 : 0;
+void Grid::update() {
+    std::set<Cell> cellsToCheck;
+
+    // Vérifier toutes les cellules vivantes et leurs voisins
+    for (const auto& cell : aliveCells) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                cellsToCheck.insert({cell.x + dx, cell.y + dy});
             }
         }
     }
-    
-    grid = newGrid;
+
+    std::set<Cell> newAliveCells;
+
+    for (const auto& cell : cellsToCheck) {
+        int neighbors = countNeighbors(cell.x, cell.y);
+        bool currentlyAlive = isAlive(cell.x, cell.y);
+
+        if (currentlyAlive && (neighbors == 2 || neighbors == 3)) {
+            newAliveCells.insert(cell);
+        } else if (!currentlyAlive && neighbors == 3) {
+            newAliveCells.insert(cell);
+        }
+    }
+
+    aliveCells = newAliveCells;
 }
 
+const std::set<Cell>& Grid::getAliveCells() const {
+    return aliveCells;
+}

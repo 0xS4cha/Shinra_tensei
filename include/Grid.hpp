@@ -3,13 +3,36 @@
 
 #include <vector>
 
+#include <set>
+
+struct Cell {
+    int x, y;
+    
+    bool operator<(const Cell& other) const {
+        if (x != other.x) return x < other.x;
+        return y < other.y;
+    }
+};
+
 class Grid {
+private:
+    std::set<Cell> aliveCells;
+    
 public:
-    static int getCell(int x, int y);
-    static void setCell(int x, int y, bool alive);
-    static void update();
-    static void iterate(std::vector<std::vector<int>>& grid, int rows, int cols);
-    static int countNeighbors(const std::vector<std::vector<int>>& grid, int x, int y, int rows, int cols);
+    // Définir l'état d'une cellule
+    void setCell(int x, int y, bool alive);
+    
+    // Vérifier si une cellule est vivante
+    bool isAlive(int x, int y) const;
+    
+    // Compter les voisins vivants d'une cellule
+    int countNeighbors(int x, int y) const;
+    
+    // Mettre à jour la grille selon les règles du Jeu de la Vie
+    void update();
+    
+    // Obtenir l'ensemble des cellules vivantes
+    const std::set<Cell>& getAliveCells() const;
 };
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <vector>
-
+#include "Grid.hpp"
 class Game {
 private:
     static const int CELL_SIZE = 20;
@@ -17,7 +17,7 @@ private:
     SDL_Window* controlWindow;
     SDL_Renderer* controlRenderer;
     
-    std::vector<std::vector<int>> grid;
+    Grid grid;
     
     int x_pos;
     int y_pos;
